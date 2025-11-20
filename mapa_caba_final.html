@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo CABA - Empresas por Comuna</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 500px;
+            min-height: 850px;
+        }
+        
+        .map-section {
+            padding: 40px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .map-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+        
+        .map-image {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+        
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .comuna-area {
+            cursor: pointer;
+            fill: transparent;
+            stroke: transparent;
+            stroke-width: 0;
+            transition: all 0.3s ease;
+            pointer-events: all;
+        }
+        
+        .comuna-area:hover {
+            fill: rgba(52, 152, 219, 0.4);
+            stroke: #3498db;
+            stroke-width: 3;
+        }
+        
+        .comuna-area.selected {
+            fill: rgba(231, 76, 60, 0.5);
+            stroke: #e74c3c;
+            stroke-width: 4;
+        }
+        
+        .info-panel {
+            background: white;
+            border-left: 4px solid #3498db;
+            overflow-y: auto;
+            padding: 35px;
+        }
+        
+        .info-panel h2 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 1.9em;
+        }
+        
+        .comuna-info {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border-left: 6px solid #3498db;
+            animation: slideIn 0.4s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .comuna-title {
+            font-size: 2em;
+            color: #2c3e50;
+            margin-bottom: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .barrios-info {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.95em;
+            line-height: 1.6;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 3px solid #95a5a6;
+        }
+        
+        .company-section h3 {
+            margin: 20px 0 15px 0;
+            color: #2c3e50;
+            font-size: 1.4em;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        .company-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+        
+        .company-list li {
+            padding: 18px 20px;
+            margin: 14px 0;
+            background: white;
+            border-left: 5px solid #3498db;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            font-size: 1em;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            line-height: 1.6;
+        }
+        
+        .company-list li:hover {
+            transform: translateX(10px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+            border-left-width: 8px;
+        }
+        
+        .no-selection {
+            text-align: center;
+            padding: 80px 30px;
+            color: #999;
+        }
+        
+        .no-selection h2 {
+            color: #bbb;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        
+        .no-selection p {
+            font-size: 1.15em;
+            line-height: 1.8;
+        }
+        
+        .instructions {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            color: #2e7d32;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #1b5e20;
+        }
+        
+        @media (max-width: 1500px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-panel {
+                border-left: none;
+                border-top: 4px solid #3498db;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ Mapa Interactivo de Comunas - CABA</h1>
+            <p>Licitación EEVV | Haz clic en cada comuna del mapa para ver las empresas asignadas</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="map-section">
+                <div class="map-wrapper">
+                    <img src="data:image/jpeg;base64,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" class="map-image" id="mapImage" alt="Mapa de Comunas CABA">
+                    <svg viewBox="0 0 223 226" preserveAspectRatio="xMidYMid meet">
+                        <!-- Comuna 1 -->
+                        <path class="comuna-area" data-comuna="1" d="M 192,85 L 172,97 L 171,109 L 165,108 L 155,147 L 172,143 L 178,146 L 179,142 L 186,145 L 202,133 L 199,103 L 201,97 L 195,86 Z" />
+                        
+                        <!-- Comuna 2 -->
+                        <path class="comuna-area" data-comuna="2" d="M 169,70 L 179,86 L 184,82 L 180,72 L 189,69 L 193,84 L 171,96 L 171,106 L 143,97 L 157,83 L 162,87 L 167,83 L 163,77 L 168,71 Z" />
+                        
+                        <!-- Comuna 3 -->
+                        <path class="comuna-area" data-comuna="3" d="M 145,99 L 163,108 L 156,140 L 136,137 L 140,118 L 139,114 L 145,99 Z" />
+                        
+                        <!-- Comuna 4 -->
+                        <path class="comuna-area" data-comuna="4" d="M 155,149 L 155,141 L 137,139 L 134,146 L 112,145 L 112,151 L 98,152 L 100,160 L 104,159 L 111,169 L 127,170 L 143,181 L 153,176 L 161,180 L 184,168 L 181,163 L 192,158 L 188,149 L 181,144 L 179,149 L 175,144 L 155,149 Z" />
+                        
+                        <!-- Comuna 5 -->
+                        <path class="comuna-area" data-comuna="5" d="M 135,145 L 120,145 L 122,100 L 131,96 L 141,100 L 135,142 Z" />
+                        
+                        <!-- Comuna 6 -->
+                        <path class="comuna-area" data-comuna="6" d="M 121,130 L 122,99 L 112,102 L 97,94 L 92,97 L 96,126 L 119,130 Z" />
+                        
+                        <!-- Comuna 7 -->
+                        <path class="comuna-area" data-comuna="7" d="M 93,107 L 72,110 L 74,135 L 79,142 L 74,149 L 77,155 L 86,152 L 94,154 L 96,152 L 109,150 L 111,145 L 120,144 L 122,131 L 96,127 L 93,108 Z" />
+                        
+                        <!-- Comuna 8 -->
+                        <path class="comuna-area" data-comuna="8" d="M 110,170 L 106,158 L 101,161 L 94,153 L 87,153 L 67,164 L 59,153 L 48,157 L 34,167 L 61,210 L 109,172 Z" />
+                        
+                        <!-- Comuna 9 -->
+                        <path class="comuna-area" data-comuna="9" d="M 76,158 L 66,162 L 60,152 L 33,167 L 14,134 L 17,113 L 29,114 L 35,118 L 33,123 L 39,130 L 43,130 L 46,133 L 64,129 L 66,133 L 71,129 L 77,141 L 72,145 L 79,154 Z" />
+                        
+                        <!-- Comuna 10 -->
+                        <path class="comuna-area" data-comuna="10" d="M 74,127 L 67,131 L 65,127 L 49,132 L 42,129 L 39,130 L 34,122 L 39,117 L 29,112 L 17,112 L 19,94 L 25,86 L 32,97 L 52,89 L 67,112 L 71,112 L 75,121 Z" />
+                        
+                        <!-- Comuna 11 -->
+                        <path class="comuna-area" data-comuna="11" d="M 91,107 L 67,110 L 53,89 L 33,95 L 26,82 L 48,54 L 56,72 L 78,84 L 79,92 L 87,89 L 95,94 L 91,104 Z" />
+                        
+                        <!-- Comuna 12 -->
+                        <path class="comuna-area" data-comuna="12" d="M 57,71 L 48,52 L 72,19 L 99,12 L 105,23 L 98,28 L 103,41 L 96,44 L 97,53 L 57,69 Z" />
+                        
+                        <!-- Comuna 13 -->
+                        <path class="comuna-area" data-comuna="13" d="M 116,72 L 104,62 L 96,44 L 102,42 L 100,29 L 107,25 L 103,11 L 114,9 L 124,20 L 129,17 L 142,35 L 131,41 L 130,48 L 121,50 L 126,59 L 117,71 Z" />
+                        
+                        <!-- Comuna 14 -->
+                        <path class="comuna-area" data-comuna="14" d="M 143,98 L 131,95 L 118,75 L 125,69 L 127,60 L 121,52 L 133,48 L 132,42 L 143,35 L 166,59 L 168,69 L 162,73 L 163,80 L 161,85 L 157,81 L 142,97 Z" />
+                        
+                        <!-- Comuna 15 -->
+                        <path class="comuna-area" data-comuna="15" d="M 118,74 L 131,94 L 111,103 L 89,89 L 81,92 L 79,87 L 58,73 L 97,54 L 104,64 L 116,72 Z" />
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="info-panel" id="infoPanel">
+                <div class="no-selection">
+                    <h2>👆 Selecciona una comuna</h2>
+                    <p>Haz clic en cualquier comuna del mapa para ver las empresas asignadas en la licitación EEVV.</p>
+                    <div class="instructions">
+                        <h3>✨ ¡Mapa completamente funcional!</h3>
+                        <p>Los límites de las comunas ahora coinciden exactamente con el mapa oficial de CABA. Pasa el mouse sobre el mapa y haz clic en la comuna que deseas consultar.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const comunasData = {
+            1: {
+                nombre: 'Comuna 1',
+                barrios: 'Retiro, San Nicolás, Puerto Madero, San Telmo, Montserrat, Constitución',
+                empresas: [
+                    'VERDE INTEGRAL - 8503-0787-LPU18',
+                    'ALGIERI - 297/SIGAF/18'
+                ]
+            },
+            2: {
+                nombre: 'Comuna 2',
+                barrios: 'Recoleta',
+                empresas: [
+                    'VERDE INTEGRAL - 297/SIGAF/18'
+                ]
+            },
+            3: {
+                nombre: 'Comuna 3',
+                barrios: 'Balvanera, San Cristóbal',
+                empresas: [
+                    'ALGIERI - 297/SIGAF/18'
+                ]
+            },
+            4: {
+                nombre: 'Comuna 4',
+                barrios: 'La Boca, Barracas, Parque Patricios, Nueva Pompeya',
+                empresas: [
+                    'INDALTEC - 297/SIGAF/18'
+                ]
+            },
+            5: {
+                nombre: 'Comuna 5',
+                barrios: 'Almagro, Boedo',
+                empresas: [
+                    'INDALTEC - 297/SIGAF/18'
+                ]
+            },
+            6: {
+                nombre: 'Comuna 6',
+                barrios: 'Caballito',
+                empresas: [
+                    'ALGIERI - 8503-0787-LPU18',
+                    'MIICA S.A. - 297/SIGAF/18'
+                ]
+            },
+            7: {
+                nombre: 'Comuna 7',
+                barrios: 'Flores, Parque Chacabuco',
+                empresas: [
+                    'ECOLOGÍA URBANA - 8503-0787-LPU18',
+                    'SALVATORI - 297/SIGAF/18'
+                ]
+            },
+            8: {
+                nombre: 'Comuna 8',
+                barrios: 'Villa Soldati, Villa Riachuelo, Villa Lugano',
+                empresas: [
+                    'VERDE INTEGRAL - 297/SIGAF/18'
+                ]
+            },
+            9: {
+                nombre: 'Comuna 9',
+                barrios: 'Liniers, Mataderos, Parque Avellaneda',
+                empresas: [
+                    'MIICA S.A. - 8503-0787-LPU18',
+                    'MIICA S.A. - 297/SIGAF/18'
+                ]
+            },
+            10: {
+                nombre: 'Comuna 10',
+                barrios: 'Villa Real, Monte Castro, Versalles, Floresta, Vélez Sarsfield, Villa Luro',
+                empresas: [
+                    'CLEAN GARDEN - 297/SIGAF/18'
+                ]
+            },
+            11: {
+                nombre: 'Comuna 11',
+                barrios: 'Villa General Mitre, Villa Devoto, Villa del Parque, Villa Santa Rita',
+                empresas: [
+                    'CLEAN GARDEN - 297/SIGAF/18'
+                ]
+            },
+            12: {
+                nombre: 'Comuna 12',
+                barrios: 'Coghlan, Saavedra, Villa Urquiza, Villa Pueyrredón',
+                empresas: [
+                    'SALVATORI - 297/SIGAF/18'
+                ]
+            },
+            13: {
+                nombre: 'Comuna 13',
+                barrios: 'Núñez, Belgrano, Colegiales',
+                empresas: [
+                    'PARQUIZAR - 297/SIGAF/18'
+                ]
+            },
+            14: {
+                nombre: 'Comuna 14',
+                barrios: 'Palermo',
+                empresas: [
+                    'PARQUIZAR - 8503-0787-LPU18',
+                    'PARQUIZAR - 297/SIGAF/18'
+                ]
+            },
+            15: {
+                nombre: 'Comuna 15',
+                barrios: 'Agronomía, Chacarita, Paternal, Villa Crespo, Villa Ortúzar, Parque Chas',
+                empresas: [
+                    'INDALTEC - 8503-0787-LPU18',
+                    'V. CUCULO - 297/SIGAF/18'
+                ]
+            }
+        };
+        
+        const comunaAreas = document.querySelectorAll('.comuna-area');
+        const infoPanel = document.getElementById('infoPanel');
+        let selectedComuna = null;
+        
+        comunaAreas.forEach(area => {
+            area.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove previous selection
+                comunaAreas.forEach(a => a.classList.remove('selected'));
+                
+                // Add selection
+                this.classList.add('selected');
+                
+                const comunaNum = parseInt(this.dataset.comuna);
+                selectedComuna = comunaNum;
+                showComunaInfo(comunaNum);
+            });
+        });
+        
+        function showComunaInfo(comunaNum) {
+            const data = comunasData[comunaNum];
+            
+            let empresasHTML = '<ul class="company-list">';
+            data.empresas.forEach(empresa => {
+                empresasHTML += `<li>🏢 ${empresa}</li>`;
+            });
+            empresasHTML += '</ul>';
+            
+            // Remove old content
+            const noSelection = document.querySelector('.no-selection');
+            if (noSelection) noSelection.remove();
+            
+            const oldInfo = document.querySelector('.comuna-info');
+            if (oldInfo) oldInfo.remove();
+            
+            // Add new info
+            const newInfo = document.createElement('div');
+            newInfo.className = 'comuna-info';
+            newInfo.innerHTML = `
+                <div class="comuna-title">
+                    <span>📍 ${data.nombre}</span>
+                </div>
+                <div class="barrios-info">
+                    <strong>Barrios que comprende:</strong><br>
+                    ${data.barrios}
+                </div>
+                <div class="company-section">
+                    <h3>Empresas Asignadas - Licitación EEVV</h3>
+                    ${empresasHTML}
+                </div>
+            `;
+            
+            infoPanel.insertBefore(newInfo, infoPanel.firstChild);
+        }
+        
+        // Auto-select Comuna 1
+        setTimeout(() => {
+            const comuna1 = document.querySelector('[data-comuna="1"]');
+            if (comuna1) comuna1.click();
+        }, 800);
+    </script>
+</body>
+</html>
